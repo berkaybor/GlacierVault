@@ -18,9 +18,9 @@ $ forge build
 
 ### Rust Project
 
-#### Build
+#### Install
 ```shell
-$ cargo build
+$ cargo install
 ```
 
 #### Run
